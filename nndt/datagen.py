@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset,  DataLoader
-from .loaders import SDTLoader, object_loader
+from loaders import SDTLoader, object_loader
 
 
 if torch.cuda.is_available():
@@ -128,7 +128,7 @@ def load_one_sdt(data_folder, name):
     for file in os.listdir(f'{data_folder}/{name}/'):
         if file.endswith('.npy'):
             trg_sdf = (f'{data_folder}/{name}/{file}')
-        
+
     sdt = SDTLoader(filepath=trg_sdf)
     return sdt
 
@@ -159,6 +159,8 @@ class Datagen():
         self.shift_mul = shift_mul
         self.inference = inference
         self.batch = batch
+        self.xyz_cube_list = []
+        
         
         # if inference:
         #     self.train=False
@@ -273,8 +275,10 @@ class Datagen():
             for i in range(len(basic_cube)):
                 _xyz_cube.append(_scale_rotate_shift(basic_cube[i], scale[i], rotate[i], shift[i]))
             _xyz_cube = torch.stack(_xyz_cube, dim=0)
+
+            _xyz_cube = xyz_to_ps(_xyz_cube.to(device), sdt_loader.ps_center, sdt_loader._scale, sdt_loader._ns_center)
             
-            _xyz_cube= xyz_to_ps(_xyz_cube.to(device), sdt_loader.ps_center, sdt_loader._scale, sdt_loader._ns_center)
+            self.xyz_cube_list.append(_xyz_cube)
 
             sdt = sdt_loader.request(_xyz_cube)
 
@@ -285,6 +289,8 @@ class Datagen():
             norm_sdt = sdf_to_ns(sdt, sdt_loader._scale)
             colors_list.append(color_class)
             sdt_list.append(norm_sdt)
+
+
             
         
         sdt_list = torch.cat(sdt_list)
